@@ -13,14 +13,14 @@ namespace anvil::ir
 
         Instruction *CreateAdd(Value *lhs, Value *rhs)
         {
-            auto *inst = new Instruction(lhs->getType(), Instruction::Opcode::Add);
+            auto *inst = new Instruction(lhs->getType(), Instruction::Opcode::Add, {lhs, rhs});
             block_->addInstruction(inst);
             return inst;
         }
 
         Instruction *CreateRet(Value *val)
         {
-            auto *inst = new Instruction(val->getType(), Instruction::Opcode::Ret);
+            auto *inst = new Instruction(val->getType(), Instruction::Opcode::Ret, {val});
             block_->addInstruction(inst);
             return inst;
         }

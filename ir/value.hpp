@@ -14,6 +14,8 @@ namespace anvil::ir
         Type *getType() const { return type_; }
         const std::string &getName() const { return name_; }
 
+        virtual void print(std::ostream &os) const = 0;
+
     protected:
         Type *type_;
         std::string name_;

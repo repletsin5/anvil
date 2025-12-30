@@ -1,5 +1,7 @@
 #pragma once
 #include <ostream>
+#include <string>
+#include <helpers/helpers.hpp>
 #include <ir/value.hpp>
 
 namespace anvil::ir
@@ -11,17 +13,75 @@ namespace anvil::ir
         enum class Opcode
         {
             Add,
-            Ret
+            Sub,
+            Mul,
+            Div,
+            Ret,
         };
 
-        Instruction(Type *type, Opcode op)
-            : Value(type), opcode_(op), id_(nextId_++) {}
+        Instruction(Type *type, Opcode op, const std::vector<Value *> &operands = {})
+            : Value(type), opcode_(op), operands_(operands), id_(nextId_++) {}
 
         Opcode getOpcode() const { return opcode_; }
+        const std::vector<Value *> &getOperands() const { return operands_; }
         unsigned getId() const { return id_; }
+
+        void print(std::ostream &os) const
+        {
+            if (opcode_ != Opcode::Ret)
+                os << local(id_) << " = ";
+
+            std::string typeStr;
+            if (type_->isIntegerTy())
+                typeStr = "i" + std::to_string(type_->getBitWidth());
+            else if (type_->isHalfTy())
+                typeStr = "float";
+            else if (type_->isFloatTy())
+                typeStr = "float";
+            else if (type_->isDoubleTy())
+                typeStr = "double";
+            else
+                typeStr = "unknown";
+
+            switch (opcode_)
+            {
+            case Opcode::Add:
+                os << "add " << typeStr << " ";
+                operands_[0]->print(os);
+                os << ", ";
+                operands_[1]->print(os);
+                break;
+            case Opcode::Sub:
+                os << "sub " << typeStr << " ";
+                operands_[0]->print(os);
+                os << ", ";
+                operands_[1]->print(os);
+                break;
+            case Opcode::Mul:
+                os << "mul " << typeStr << " ";
+                operands_[0]->print(os);
+                os << ", ";
+                operands_[1]->print(os);
+                break;
+            case Opcode::Div:
+                os << "div " << typeStr << " ";
+                operands_[0]->print(os);
+                os << ", ";
+                operands_[1]->print(os);
+                break;
+            case Opcode::Ret:
+                os << "ret " << typeStr << " ";
+                if (auto *inst = dynamic_cast<Instruction *>(operands_[0]))
+                    os << local(inst->getId());
+                else
+                    operands_[0]->print(os);
+                break;
+            }
+        }
 
     private:
         Opcode opcode_;
+        std::vector<Value *> operands_;
         unsigned id_;
         inline static unsigned nextId_ = 0;
     };

@@ -50,6 +50,63 @@ namespace anvil::ir
         const std::vector<Type *> &getStructElements() const { return structElements_; }
         unsigned getNumElements() const { return numElements_; }
 
+        void print(std::ostream &os) const
+        {
+            switch (kind_)
+            {
+            case Kind::Void:
+                os << "void";
+                break;
+            case Kind::Integer:
+                os << "i" << bitWidth_;
+                break;
+            case Kind::Half:
+                os << "half";
+                break;
+            case Kind::Float:
+                os << "float";
+                break;
+            case Kind::Double:
+                os << "double";
+                break;
+            case Kind::Pointer:
+                elementType_->print(os);
+                os << "*";
+                break;
+            case Kind::Array:
+                os << "[" << numElements_ << " x ";
+                elementType_->print(os);
+                os << "]";
+                break;
+            case Kind::Vector:
+                os << "<" << numElements_ << " x ";
+                elementType_->print(os);
+                os << ">";
+                break;
+            case Kind::Struct:
+                os << "{ ";
+                for (size_t i = 0; i < structElements_.size(); ++i)
+                {
+                    if (i)
+                        os << ", ";
+                    structElements_[i]->print(os);
+                }
+                os << " }";
+                break;
+            case Kind::Function:
+                returnType_->print(os);
+                os << "(";
+                for (size_t i = 0; i < paramTypes_.size(); ++i)
+                {
+                    if (i)
+                        os << ", ";
+                    paramTypes_[i]->print(os);
+                }
+                os << ")";
+                break;
+            }
+        }
+
     private:
         explicit Type(Kind k, unsigned bits = 0) : kind_(k), bitWidth_(bits) {}
         explicit Type(Type *elem) : kind_(Kind::Pointer), elementType_(elem) {}

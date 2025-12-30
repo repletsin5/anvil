@@ -18,6 +18,11 @@ namespace anvil::ir
         ConstantInt(Type *ty, int64_t val) : Constant(ty), value_(val) {}
         int64_t getValue() const { return value_; }
 
+        void print(std::ostream &os) const
+        {
+            os << value_;
+        }
+
     private:
         int64_t value_;
     };
@@ -28,6 +33,11 @@ namespace anvil::ir
         ConstantFP(Type *ty, double val) : Constant(ty), value_(val) {}
         double getValue() const { return value_; }
 
+        void print(std::ostream &os) const
+        {
+            os << value_;
+        }
+
     private:
         double value_;
     };
@@ -36,6 +46,7 @@ namespace anvil::ir
     {
     public:
         explicit ConstantPointerNull(Type *ty) : Constant(ty) {}
+        void print(std::ostream &os) const { os << "null"; }
     };
 
     class ConstantArray : public Constant
@@ -43,6 +54,18 @@ namespace anvil::ir
     public:
         ConstantArray(Type *ty, const std::vector<Constant *> &elems)
             : Constant(ty), elements_(elems) {}
+
+        void print(std::ostream &os) const
+        {
+            os << "[";
+            for (size_t i = 0; i < elements_.size(); ++i)
+            {
+                if (i)
+                    os << ", ";
+                elements_[i]->print(os);
+            }
+            os << "]";
+        }
 
     private:
         std::vector<Constant *> elements_;
@@ -54,6 +77,18 @@ namespace anvil::ir
         ConstantStruct(Type *ty, const std::vector<Constant *> &elems)
             : Constant(ty), elements_(elems) {}
 
+        void print(std::ostream &os) const
+        {
+            os << "{";
+            for (size_t i = 0; i < elements_.size(); ++i)
+            {
+                if (i)
+                    os << ", ";
+                elements_[i]->print(os);
+            }
+            os << "}";
+        }
+
     private:
         std::vector<Constant *> elements_;
     };
@@ -64,6 +99,18 @@ namespace anvil::ir
         ConstantVector(Type *ty, const std::vector<Constant *> &elems)
             : Constant(ty), elements_(elems) {}
 
+        void print(std::ostream &os) const
+        {
+            os << "<";
+            for (size_t i = 0; i < elements_.size(); ++i)
+            {
+                if (i)
+                    os << ", ";
+                elements_[i]->print(os);
+            }
+            os << ">";
+        }
+
     private:
         std::vector<Constant *> elements_;
     };
@@ -72,6 +119,7 @@ namespace anvil::ir
     {
     public:
         ConstantTargetNone(Type *ty) : Constant(ty) {}
+        void print(std::ostream &os) const { os << "none"; }
     };
 
     class ExtractElementConstantExpr : public Constant
@@ -79,6 +127,14 @@ namespace anvil::ir
     public:
         ExtractElementConstantExpr(ConstantVector *vec, Constant *idx)
             : Constant(vec->getType()), vector_(vec), index_(idx) {}
+
+        void print(std::ostream &os) const override
+        {
+            os << "extractelement";
+            vector_->print(os);
+            os << ", ";
+            index_->print(os);
+        }
 
     private:
         ConstantVector *vector_;
@@ -90,6 +146,16 @@ namespace anvil::ir
     public:
         InsertElementConstantExpr(ConstantVector *vec, Constant *val, Constant *idx)
             : Constant(vec->getType()), vector_(vec), value_(val), index_(idx) {}
+
+        void print(std::ostream &os) const override
+        {
+            os << "insertelement";
+            vector_->print(os);
+            os << ", ";
+            value_->print(os);
+            os << ", ";
+            index_->print(os);
+        }
 
     private:
         ConstantVector *vector_;
@@ -103,6 +169,16 @@ namespace anvil::ir
         ShuffleVectorConstantExpr(ConstantVector *v1, ConstantVector *v2, Constant *mask)
             : Constant(v1->getType()), vec1_(v1), vec2_(v2), mask_(mask) {}
 
+        void print(std::ostream &os) const override
+        {
+            os << "shufflevector";
+            vec1_->print(os);
+            os << ", ";
+            vec2_->print(os);
+            os << ", ";
+            mask_->print(os);
+        }
+
     private:
         ConstantVector *vec1_;
         ConstantVector *vec2_;
@@ -114,6 +190,17 @@ namespace anvil::ir
     public:
         GetElementPtrConstantExpr(Constant *base, const std::vector<Constant *> &indices)
             : Constant(base->getType()), base_(base), indices_(indices) {}
+
+        void print(std::ostream &os) const override
+        {
+            os << "getelementptr";
+            base_->print(os);
+            for (auto *idx : indices_)
+            {
+                os << ", ";
+                idx->print(os);
+            }
+        }
 
     private:
         Constant *base_;

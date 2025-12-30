@@ -39,6 +39,40 @@ namespace anvil::ir
         void setDataLayout(std::string dl) { dataLayout_ = std::move(dl); }
         const std::string &dataLayout() const { return dataLayout_; }
 
+        void print(std::ostream &os) const
+        {
+            os << "; ModuleID = '" << name_ << "'\n";
+            if (!targetTriple_.empty())
+                os << "target triple = \"" << targetTriple_ << "\"\n";
+            if (!dataLayout_.empty())
+                os << "target datalayout = \"" << dataLayout_ << "\"\n";
+
+            os << "\n";
+
+            for (auto *g : globals_)
+            {
+                os << "@";
+                if (!g->getName().empty())
+                    os << g->getName();
+                else
+                    os << "global_" << g;
+                os << " = global ";
+                g->getType()->print(os);
+                os << " ";
+                g->print(os);
+                os << "\n";
+            }
+
+            if (!globals_.empty())
+                os << "\n";
+
+            for (auto *fn : functions_)
+            {
+                fn->print(os);
+                os << "\n";
+            }
+        }
+
     private:
         std::string name_;
         std::vector<Value *> globals_;

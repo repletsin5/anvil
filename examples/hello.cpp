@@ -14,7 +14,10 @@ int main()
     BasicBlock *entry = new BasicBlock("entry");
     IRBuilder builder(entry);
 
-    Instruction *value = builder.CreateAdd(new Value(i32), new Value(i32));
+    auto *const1 = new ConstantInt(i32, 42);
+    auto *const2 = new ConstantInt(i32, 58);
+
+    Instruction *value = builder.CreateAdd(const1, const2);
     builder.CreateRet(value);
 
     fn->addBlock(entry);
