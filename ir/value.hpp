@@ -1,0 +1,21 @@
+#pragma once
+
+#include <string>
+#include <ir/type.hpp>
+
+namespace anvil::ir
+{
+    class Value
+    {
+    public:
+        explicit Value(Type *type, std::string name = "")
+            : type_(type), name_(std::move(name)) {}
+
+        Type *getType() const { return type_; }
+        const std::string &getName() const { return name_; }
+
+    protected:
+        Type *type_;
+        std::string name_;
+    };
+}
