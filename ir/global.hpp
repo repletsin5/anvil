@@ -8,18 +8,13 @@ namespace anvil::ir
     class GlobalVariable : public Value
     {
     public:
-        GlobalVariable(Type *ty, std::string name, Constant *init, bool isConstant = true)
-            : Value(ty, std::move(name)), initializer_(init), isConstant_(isConstant) {}
+        GlobalVariable(Type *ty, std::string name, std::unique_ptr<Constant> init, bool isConstant = true)
+            : Value(ty, std::move(name)), initializer_(std::move(init)), isConstant_(isConstant) {}
 
         void print(std::ostream &os) const override
         {
             os << "@" << name_ << " = ";
-
-            if (isConstant_)
-                os << "private unnamed_addr constant ";
-            else
-                os << "global ";
-
+            os << (isConstant_ ? "private unnamed_addr constant " : "global ");
             type_->getElementType()->print(os);
             os << " ";
             initializer_->print(os);
@@ -31,7 +26,7 @@ namespace anvil::ir
         }
 
     private:
-        Constant *initializer_;
+        std::unique_ptr<Constant> initializer_;
         bool isConstant_;
     };
 }

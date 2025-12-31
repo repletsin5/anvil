@@ -9,49 +9,23 @@ namespace anvil::ir
     class Module
     {
     public:
-        explicit Module(std::string name)
-            : name_(std::move(name)) {}
-
+        explicit Module(std::string name) : name_(std::move(name)) {}
         const std::string &name() const { return name_; }
-
-        void addGlobal(Value *g)
-        {
-            globals_.push_back(g);
-        }
+        void addGlobal(std::unique_ptr<Value> g) { globals_.push_back(std::move(g)); }
 
         GlobalVariable *createStringLiteral(Context &ctx, const std::string &str)
         {
-            static unsigned stringId = 0;
-
             Type *i8 = ctx.getInt8Ty();
             Type *arrayTy = ctx.getArrayType(i8, str.size() + 1);
             Type *ptrTy = ctx.getPointerType(arrayTy);
-            ConstantString *cstr = new ConstantString(arrayTy, str);
-            GlobalVariable *gv = new GlobalVariable(ptrTy, ".str." + std::to_string(stringId++), cstr);
-            addGlobal(gv);
-            return gv;
+            auto cstr = std::make_unique<ConstantString>(arrayTy, str);
+            auto gv = std::make_unique<GlobalVariable>(ptrTy, ".str." + std::to_string(stringId_++), std::move(cstr));
+            GlobalVariable *ptr = gv.get();
+            addGlobal(std::move(gv));
+            return ptr;
         }
 
-        void addFunction(Function *fn)
-        {
-            functions_.push_back(fn);
-        }
-
-        auto globals_begin() const { return globals_.begin(); }
-        auto globals_end() const { return globals_.end(); }
-        size_t global_size() const { return globals_.size(); }
-        bool global_empty() const { return globals_.empty(); }
-
-        auto functions_begin() const { return functions_.begin(); }
-        auto functions_end() const { return functions_.end(); }
-        size_t function_size() const { return functions_.size(); }
-        bool function_empty() const { return functions_.empty(); }
-
-        void setTargetTriple(std::string tt) { targetTriple_ = std::move(tt); }
-        const std::string &targetTriple() const { return targetTriple_; }
-
-        void setDataLayout(std::string dl) { dataLayout_ = std::move(dl); }
-        const std::string &dataLayout() const { return dataLayout_; }
+        void addFunction(std::unique_ptr<Function> fn) { functions_.push_back(std::move(fn)); }
 
         void print(std::ostream &os) const
         {
@@ -60,31 +34,26 @@ namespace anvil::ir
                 os << "target triple = \"" << targetTriple_ << "\"\n";
             if (!dataLayout_.empty())
                 os << "target datalayout = \"" << dataLayout_ << "\"\n";
-
             os << "\n";
 
-            for (Value *g : globals_)
-            {
-                g->print(os);
-                os << "\n";
-            }
-
+            for (const auto &g : globals_)
+                g->print(os), os << "\n";
             if (!globals_.empty())
                 os << "\n";
 
-            for (Function *fn : functions_)
-            {
-                fn->print(os);
-                os << "\n";
-            }
+            for (const auto &fn : functions_)
+                fn->print(os), os << "\n";
         }
+
+        void setTargetTriple(std::string tt) { targetTriple_ = std::move(tt); }
+        void setDataLayout(std::string dl) { dataLayout_ = std::move(dl); }
 
     private:
         std::string name_;
-        std::vector<Value *> globals_;
-        std::vector<Function *> functions_;
-
+        std::vector<std::unique_ptr<Value>> globals_;
+        std::vector<std::unique_ptr<Function>> functions_;
         std::string targetTriple_;
         std::string dataLayout_;
+        unsigned stringId_ = 0;
     };
 }

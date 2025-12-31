@@ -10,3 +10,5 @@
 #include <ir/constants.hpp>
 #include <ir/global.hpp>
 #include <irbuilder/ir_builder.hpp>
+#include <ir/instruction_print.hpp>
+#include <ir/helpers.hpp>

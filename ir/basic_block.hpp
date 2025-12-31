@@ -1,4 +1,5 @@
 #pragma once
+
 #include <vector>
 #include <string>
 #include <ir/instruction.hpp>
@@ -6,17 +7,20 @@
 namespace anvil::ir
 {
 
-    class BasicBlock
+    class BasicBlock : public Value
     {
     public:
-        explicit BasicBlock(std::string name) : name_(name) {}
-
-        void addInstruction(Instruction *inst) { instructions_.push_back(inst); }
-
-        void print(std::ostream &os) const
+        BasicBlock(const std::string &name) : Value(nullptr), name_(name) {}
+        const std::string &getName() const { return name_; }
+        void addInstruction(std::unique_ptr<Instruction> inst)
+        {
+            instructions_.push_back(std::move(inst));
+        }
+        
+        void print(std::ostream &os) const override
         {
             os << name_ << ":\n";
-            for (Instruction *inst : instructions_)
+            for (const auto &inst : instructions_)
             {
                 os << "  ";
                 inst->print(os);
@@ -26,6 +30,6 @@ namespace anvil::ir
 
     private:
         std::string name_;
-        std::vector<Instruction *> instructions_;
+        std::vector<std::unique_ptr<Instruction>> instructions_;
     };
 }

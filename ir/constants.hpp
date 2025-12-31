@@ -28,7 +28,7 @@ namespace anvil::ir
     {
     public:
         ConstantFP(Type *ty, double val) : Constant(ty), value_(val) {}
-        double getValue() const { return value_; }
+        double getValue() const noexcept { return value_; }
 
         void print(std::ostream &os) const override { os << value_; }
 
@@ -42,7 +42,7 @@ namespace anvil::ir
         ConstantString(Type *arrayTy, std::string value)
             : Constant(arrayTy), value_(std::move(value)) {}
 
-        const std::string &value() const { return value_; }
+        const std::string &value() const noexcept { return value_; }
 
         void print(std::ostream &os) const override
         {
@@ -67,12 +67,17 @@ namespace anvil::ir
         std::string value_;
     };
 
-    class ConstantPointerNull : public Constant
+    inline void printList(std::ostream &os, const std::vector<Constant *> &elems, char open, char close, const std::string &sep = ", ")
     {
-    public:
-        explicit ConstantPointerNull(Type *ty) : Constant(ty) {}
-        void print(std::ostream &os) const override { os << "null"; }
-    };
+        os << open;
+        for (size_t i = 0; i < elems.size(); ++i)
+        {
+            if (i)
+                os << sep;
+            elems[i]->print(os);
+        }
+        os << close;
+    }
 
     class ConstantArray : public Constant
     {
@@ -80,17 +85,7 @@ namespace anvil::ir
         ConstantArray(Type *ty, const std::vector<Constant *> &elems)
             : Constant(ty), elements_(elems) {}
 
-        void print(std::ostream &os) const override
-        {
-            os << "[";
-            for (size_t i = 0; i < elements_.size(); ++i)
-            {
-                if (i)
-                    os << ", ";
-                elements_[i]->print(os);
-            }
-            os << "]";
-        }
+        void print(std::ostream &os) const override { printList(os, elements_, '[', ']'); }
 
     private:
         std::vector<Constant *> elements_;
@@ -102,17 +97,7 @@ namespace anvil::ir
         ConstantStruct(Type *ty, const std::vector<Constant *> &elems)
             : Constant(ty), elements_(elems) {}
 
-        void print(std::ostream &os) const override
-        {
-            os << "{";
-            for (size_t i = 0; i < elements_.size(); ++i)
-            {
-                if (i)
-                    os << ", ";
-                elements_[i]->print(os);
-            }
-            os << "}";
-        }
+        void print(std::ostream &os) const override { printList(os, elements_, '{', '}'); }
 
     private:
         std::vector<Constant *> elements_;
@@ -124,20 +109,17 @@ namespace anvil::ir
         ConstantVector(Type *ty, const std::vector<Constant *> &elems)
             : Constant(ty), elements_(elems) {}
 
-        void print(std::ostream &os) const override
-        {
-            os << "<";
-            for (size_t i = 0; i < elements_.size(); ++i)
-            {
-                if (i)
-                    os << ", ";
-                elements_[i]->print(os);
-            }
-            os << ">";
-        }
+        void print(std::ostream &os) const override { printList(os, elements_, '<', '>'); }
 
     private:
         std::vector<Constant *> elements_;
+    };
+
+    class ConstantPointerNull : public Constant
+    {
+    public:
+        explicit ConstantPointerNull(Type *ty) : Constant(ty) {}
+        void print(std::ostream &os) const override { os << "null"; }
     };
 
     class ConstantTargetNone : public Constant
