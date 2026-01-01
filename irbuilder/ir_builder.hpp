@@ -328,8 +328,6 @@ namespace anvil::ir
         Instruction *createInst(Type *type, Instruction::Opcode op, const std::vector<Value *> &operands = {})
         {
             auto inst = std::make_unique<Instruction>(type, op, operands);
-            if (auto *F = block_->getParent())
-                inst->setId(F->getNextId());
             Instruction *ptr = inst.get();
             block_->addInstruction(std::move(inst));
             return ptr;

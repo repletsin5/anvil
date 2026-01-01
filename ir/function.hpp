@@ -60,10 +60,12 @@ namespace anvil::ir
             }
 
             os << ") {\n";
+
+            assignIds();
+
             for (const auto &bb : blocks_)
-            {
-                bb->print(os, nextId_);
-            }
+                bb->print(os);
+                
             os << "}\n";
         }
 
@@ -73,6 +75,22 @@ namespace anvil::ir
         }
 
     private:
+        void assignIds() const
+        {
+            unsigned id = 0;
+            for (const auto &bb : blocks_)
+            {
+                for (const auto &inst : bb->getInstructions())
+                {
+                    if (inst->getType() != nullptr)
+                        inst->setId(id++);
+                }
+
+                if (bb->getTerminator())
+                    bb->getTerminator()->setId(id++);
+            }
+        }
+
         mutable unsigned nextId_ = 0;
         FunctionType *funcType_;
         std::vector<std::unique_ptr<Argument>> args_;

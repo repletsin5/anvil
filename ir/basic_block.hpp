@@ -58,19 +58,10 @@ namespace anvil::ir
 
         void print(std::ostream &os) const override
         {
-            unsigned dummyId = 0;
-            print(os, dummyId);
-        }
-
-        void print(std::ostream &os, unsigned &nextId) const
-        {
             os << name_ << ":\n";
 
             for (const auto &inst : instructions_)
             {
-                if (inst->getType() != nullptr)
-                    inst->setId(nextId++);
-
                 os << "  ";
                 inst->print(os);
                 os << "\n";
