@@ -97,18 +97,43 @@ namespace anvil::ir
         };
 
         Instruction(Type *type, Opcode op, const std::vector<Value *> &operands = {})
-            : Value(type), opcode_(op), operands_(operands), id_(nextId_++) {}
+            : Value(type), opcode_(op), operands_(operands), id_(-1) {}
         Instruction(BasicBlock *target)
-            : Value(nullptr), opcode_(Opcode::Br), branchTarget_(target), id_(nextId_++) {}
+            : Value(nullptr), opcode_(Opcode::Br), branchTarget_(target), id_(-1) {}
         Instruction(Value *cond, BasicBlock *thenBB, BasicBlock *elseBB)
-            : Value(nullptr), opcode_(Opcode::Br), cond_(cond), thenBB_(thenBB), elseBB_(elseBB), id_(nextId_++) {}
+            : Value(nullptr), opcode_(Opcode::Br), cond_(cond), thenBB_(thenBB), elseBB_(elseBB), id_(-1) {}
+
         void printTerminator(std::ostream &os) const;
         void printOtherOps(std::ostream &os) const;
-        void setPredicate(ICmpPredicate pred) { icmpPred_ = pred; }
-        ICmpPredicate getPredicate() const { return icmpPred_; }
-        Opcode getOpcode() const noexcept { return opcode_; }
-        const std::vector<Value *> &getOperands() const noexcept { return operands_; }
-        unsigned getId() const noexcept { return id_; }
+
+        void setId(unsigned id)
+        {
+            id_ = id;
+        }
+        unsigned getId() const noexcept
+        {
+            return id_;
+        }
+
+        void setPredicate(ICmpPredicate pred)
+        {
+            icmpPred_ = pred;
+        }
+
+        ICmpPredicate getPredicate() const
+        {
+            return icmpPred_;
+        }
+
+        Opcode getOpcode() const noexcept
+        {
+            return opcode_;
+        }
+
+        const std::vector<Value *> &getOperands() const noexcept
+        {
+            return operands_;
+        }
 
         void addIncoming(Value *val, BasicBlock *bb)
         {
@@ -116,12 +141,30 @@ namespace anvil::ir
             phiBlocks_.push_back(bb);
         }
 
-        const std::vector<Value *> &getIncomingValues() const { return phiValues_; }
-        const std::vector<BasicBlock *> &getIncomingBlocks() const { return phiBlocks_; }
+        const std::vector<Value *> &getIncomingValues() const
+        {
+            return phiValues_;
+        }
 
-        BasicBlock *getBranchTarget() const { return branchTarget_; }
-        BasicBlock *getThenBB() const { return thenBB_; }
-        BasicBlock *getElseBB() const { return elseBB_; }
+        const std::vector<BasicBlock *> &getIncomingBlocks() const
+        {
+            return phiBlocks_;
+        }
+
+        BasicBlock *getBranchTarget() const
+        {
+            return branchTarget_;
+        }
+
+        BasicBlock *getThenBB() const
+        {
+            return thenBB_;
+        }
+
+        BasicBlock *getElseBB() const
+        {
+            return elseBB_;
+        }
 
         void print(std::ostream &os) const override
         {

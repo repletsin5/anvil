@@ -19,7 +19,7 @@ int main()
     auto one = std::make_unique<ConstantInt>(ctx.getInt32Ty(), 1);
     auto two = std::make_unique<ConstantInt>(ctx.getInt32Ty(), 2);
 
-    Instruction* cmpX =
+    Instruction *cmpX =
         builder.CreateICmp(Instruction::ICmpPredicate::EQ, x.get(), one.get());
 
     auto x_then = std::make_unique<BasicBlock>("x.then");
@@ -30,7 +30,7 @@ int main()
 
     IRBuilder xThenBuilder(&ctx, x_then.get());
 
-    Instruction* cmpY =
+    Instruction *cmpY =
         xThenBuilder.CreateICmp(Instruction::ICmpPredicate::EQ, y.get(), two.get());
 
     auto y_then = std::make_unique<BasicBlock>("y.then");
@@ -48,7 +48,7 @@ int main()
     yElseBuilder.CreateBr(y_merge.get());
 
     IRBuilder yMergeBuilder(&ctx, y_merge.get());
-    Instruction* yPhi = yMergeBuilder.CreatePHI(ctx.getInt32Ty());
+    Instruction *yPhi = yMergeBuilder.CreatePHI(ctx.getInt32Ty());
     yPhi->addIncoming(v10.get(), y_then.get());
     yPhi->addIncoming(v20.get(), y_else.get());
     yMergeBuilder.CreateBr(x_merge.get());
@@ -58,7 +58,7 @@ int main()
     xElseBuilder.CreateBr(x_merge.get());
 
     IRBuilder xMergeBuilder(&ctx, x_merge.get());
-    Instruction* xPhi = xMergeBuilder.CreatePHI(ctx.getInt32Ty());
+    Instruction *xPhi = xMergeBuilder.CreatePHI(ctx.getInt32Ty());
     xPhi->addIncoming(yPhi, y_merge.get());
     xPhi->addIncoming(v30.get(), x_else.get());
     xMergeBuilder.CreateRet(xPhi);

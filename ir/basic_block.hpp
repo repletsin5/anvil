@@ -11,12 +11,22 @@ namespace anvil::ir
     {
     public:
         BasicBlock(const std::string &name) : Value(nullptr), name_(name) {}
-        const std::string &getName() const { return name_; }
+
+        const std::string &getName() const
+        {
+            return name_;
+        }
+
         void addInstruction(std::unique_ptr<Instruction> inst)
         {
             instructions_.push_back(std::move(inst));
         }
-        
+
+        const std::vector<std::unique_ptr<Instruction>> &getInstructions() const
+        {
+            return instructions_;
+        }
+
         void print(std::ostream &os) const override
         {
             os << name_ << ":\n";

@@ -81,6 +81,11 @@ namespace anvil::ir
             return ptr;
         }
 
+        void SetInsertPoint(BasicBlock *bb)
+        {
+            block_ = bb;
+        }
+
     private:
         Context *ctx_;
         BasicBlock *block_;

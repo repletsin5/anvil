@@ -15,8 +15,21 @@ namespace anvil::ir
 
         void addBlock(std::unique_ptr<BasicBlock> bb) { blocks_.push_back(std::move(bb)); }
 
+        void assignSSAIds() const
+        {
+            unsigned currentId = 0;
+            for (auto &bb : blocks_)
+            {
+                for (auto &inst : bb->getInstructions())
+                {
+                    inst->setId(currentId++);
+                }
+            }
+        }
+
         void print(std::ostream &os) const override
         {
+            assignSSAIds();
             os << "define ";
             retType_->print(os);
             os << " " << global(name_) << "(";

@@ -1,0 +1,70 @@
+#include <anvil.hpp>
+#include <fstream>
+
+using namespace anvil::ir;
+
+int main()
+{
+    Context ctx;
+    Module mod("complex_pattern");
+
+    auto mainFn = std::make_unique<Function>(ctx.getInt32Ty(), "main");
+    auto entry = std::make_unique<BasicBlock>("entry");
+    auto loop_cond = std::make_unique<BasicBlock>("loop.cond");
+    auto loop_body = std::make_unique<BasicBlock>("loop.body");
+    auto loop_end = std::make_unique<BasicBlock>("loop.end");
+    auto if_then = std::make_unique<BasicBlock>("if.then");
+    auto if_else = std::make_unique<BasicBlock>("if.else");
+    auto if_merge = std::make_unique<BasicBlock>("if.merge");
+    
+    IRBuilder builder(&ctx, entry.get());
+    ConstantInt *zero = new ConstantInt(ctx.getInt32Ty(), 0);
+    ConstantInt *one = new ConstantInt(ctx.getInt32Ty(), 1);
+    ConstantInt *ten = new ConstantInt(ctx.getInt32Ty(), 10);
+    ConstantInt *five = new ConstantInt(ctx.getInt32Ty(), 5);
+    
+    builder.CreateBr(loop_cond.get());
+    builder.SetInsertPoint(loop_cond.get());
+    
+    Instruction *iPhi = builder.CreatePHI(ctx.getInt32Ty());
+    iPhi->addIncoming(zero, entry.get());
+    
+    Instruction *cmpLoop = builder.CreateICmp(Instruction::ICmpPredicate::SLT, iPhi, five);
+    builder.CreateCondBr(cmpLoop, loop_body.get(), loop_end.get());
+    builder.SetInsertPoint(loop_body.get());
+    
+    Instruction *rem = builder.CreateICmp(Instruction::ICmpPredicate::EQ, iPhi, zero);
+    builder.CreateCondBr(rem, if_then.get(), if_else.get());
+    builder.SetInsertPoint(if_then.get());
+    
+    Instruction *addThen = builder.CreateAdd(iPhi, ten);
+    builder.CreateBr(if_merge.get());
+    builder.SetInsertPoint(if_else.get());
+    
+    Instruction *addElse = builder.CreateAdd(iPhi, five);
+    builder.CreateBr(if_merge.get());
+    builder.SetInsertPoint(if_merge.get());
+    
+    Instruction *phiIf = builder.CreatePHI(ctx.getInt32Ty());
+    phiIf->addIncoming(addThen, if_then.get());
+    phiIf->addIncoming(addElse, if_else.get());
+    
+    Instruction *inc = builder.CreateAdd(iPhi, one);
+    iPhi->addIncoming(inc, if_merge.get());
+    builder.CreateBr(loop_cond.get());
+    builder.SetInsertPoint(loop_end.get());
+    builder.CreateRet(iPhi);
+    
+    mainFn->addBlock(std::move(entry));
+    mainFn->addBlock(std::move(loop_cond));
+    mainFn->addBlock(std::move(loop_body));
+    mainFn->addBlock(std::move(loop_end));
+    mainFn->addBlock(std::move(if_then));
+    mainFn->addBlock(std::move(if_else));
+    mainFn->addBlock(std::move(if_merge));
+    
+    mod.addFunction(std::move(mainFn));
+    
+    std::ofstream out(mod.name() + ".ll");
+    mod.print(out);
+}
