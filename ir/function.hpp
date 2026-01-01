@@ -1,55 +1,81 @@
 #pragma once
 
-#include <ir/basic_block.hpp>
-#include <ir/type.hpp>
+#include <memory>
+#include <vector>
+#include <ostream>
+
 #include <ir/value.hpp>
+#include <ir/argument.hpp>
+#include <ir/basic_block.hpp>
+#include <ir/types/function.hpp>
 
 namespace anvil::ir
 {
-
-    class Function : public Value
+    class Function final : public Value
     {
     public:
-        Function(Type *retType, std::string name, std::vector<Type *> params = {})
-            : Value(nullptr, std::move(name)), retType_(retType), paramTypes_(std::move(params)) {}
-
-        void addBlock(std::unique_ptr<BasicBlock> bb) { blocks_.push_back(std::move(bb)); }
-
-        void assignSSAIds() const
+        Function(FunctionType *type, std::string name)
+            : Value(type, std::move(name)), funcType_(type)
         {
-            unsigned currentId = 0;
-            for (auto &bb : blocks_)
-            {
-                for (auto &inst : bb->getInstructions())
-                {
-                    inst->setId(currentId++);
-                }
-            }
+            for (Type *paramTy : funcType_->getParamTypes())
+                args_.emplace_back(std::make_unique<Argument>(paramTy));
+        }
+
+        FunctionType *getFunctionType() const noexcept
+        {
+            return funcType_;
+        }
+
+        const std::vector<std::unique_ptr<Argument>> &getArguments() const noexcept
+        {
+            return args_;
+        }
+
+        Argument *getArgument(unsigned idx) const
+        {
+            return args_.at(idx).get();
+        }
+
+        void addBlock(std::unique_ptr<BasicBlock> bb)
+        {
+            blocks_.push_back(std::move(bb));
+        }
+
+        const std::vector<std::unique_ptr<BasicBlock>> &getBlocks() const noexcept
+        {
+            return blocks_;
         }
 
         void print(std::ostream &os) const override
         {
-            assignSSAIds();
             os << "define ";
-            retType_->print(os);
-            os << " " << global(name_) << "(";
-            for (size_t i = 0; i < paramTypes_.size(); ++i)
+            funcType_->getReturnType()->print(os);
+            os << " @" << name_ << "(";
+
+            for (size_t i = 0; i < args_.size(); ++i)
             {
                 if (i)
                     os << ", ";
-                paramTypes_[i]->print(os);
+                args_[i]->print(os);
             }
+
             os << ") {\n";
             for (const auto &bb : blocks_)
             {
-                bb->print(os);
+                bb->print(os, nextId_);
             }
             os << "}\n";
         }
 
+        unsigned getNextId()
+        {
+            return nextId_++;
+        }
+
     private:
-        Type *retType_;
-        std::vector<Type *> paramTypes_;
+        mutable unsigned nextId_ = 0;
+        FunctionType *funcType_;
+        std::vector<std::unique_ptr<Argument>> args_;
         std::vector<std::unique_ptr<BasicBlock>> blocks_;
     };
 }

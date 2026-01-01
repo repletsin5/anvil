@@ -1,26 +1,48 @@
 #pragma once
 
 #include <string>
-#include <ir/type.hpp>
+#include <ostream>
+
+#include <ir/types/type.hpp>
 
 namespace anvil::ir
 {
     class Value
     {
     public:
-        explicit Value(Type *type, std::string name = "")
+        explicit Value(Type *type, std::string name = {})
             : type_(type), name_(std::move(name)) {}
 
         virtual ~Value() = default;
 
-        Type *getType() const { return type_; }
-        const std::string &getName() const { return name_; }
+        Type *getType() const noexcept
+        {
+            return type_;
+        }
+
+        bool hasName() const noexcept
+        {
+            return !name_.empty();
+        }
+
+        const std::string &getName() const noexcept
+        {
+            return name_;
+        }
+
+        void setName(std::string name)
+        {
+            name_ = std::move(name);
+        }
 
         virtual void print(std::ostream &os) const = 0;
 
         virtual void printAsOperand(std::ostream &os) const
         {
-            print(os);
+            if (hasName())
+                os << "%" << name_;
+            else
+                print(os);
         }
 
     protected:

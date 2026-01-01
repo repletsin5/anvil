@@ -1,4 +1,4 @@
-#include <anvil.hpp> 
+#include <anvil.hpp>
 #include <fstream>
 
 using namespace anvil::ir;
@@ -8,8 +8,10 @@ int main()
     Context ctx;
     Module mod("hello_world");
 
-    auto mainFn = std::make_unique<Function>(ctx.getInt32Ty(), "main");
-    auto entry = std::make_unique<BasicBlock>("entry");
+    FunctionType *funcTy = ctx.getFunctionTy(ctx.getInt32Ty(), {});
+    
+    auto mainFn = std::make_unique<Function>(funcTy, "main");
+    auto entry = std::make_unique<BasicBlock>(ctx.getLabelTy(), "entry", mainFn.get());
 
     IRBuilder builder(&ctx, entry.get());
 
@@ -18,7 +20,7 @@ int main()
 
     mainFn->addBlock(std::move(entry));
     mod.addFunction(std::move(mainFn));
-
+ 
     std::ofstream out(mod.name() + ".ll");
     mod.print(out);
 }

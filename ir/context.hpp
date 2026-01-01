@@ -3,129 +3,160 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
-#include <ir/type.hpp>
+
+#include <ir/types/types.hpp>
 
 namespace anvil::ir
 {
-    class Type;
-
     class Context
     {
     public:
         Context() = default;
 
-        Type *getVoidType()
+        VoidType *getVoidTy()
         {
-            if (!voidType_)
-                voidType_ = makeType(Type::Kind::Void);
-            return voidType_;
+            if (!voidTy_)
+                voidTy_ = make<VoidType>();
+            return voidTy_;
         }
 
-        Type *getIntType(unsigned bits)
+        IntegerType *getIntTy(unsigned bits)
         {
-            auto it = std::find_if(types_.begin(), types_.end(),
-                                   [bits](const std::unique_ptr<Type> &t)
-                                   {
-                                       return t->isIntegerTy(bits);
-                                   });
-            if (it != types_.end())
-                return it->get();
-            Type *t = makeType(Type::Kind::Integer, bits);
-            types_.emplace_back(t);
-            return t;
+            for (auto &t : types_)
+            {
+                if (auto *i = dynamic_cast<IntegerType *>(t.get()))
+                    if (i->getBitWidth() == bits)
+                        return i;
+            }
+            return make<IntegerType>(bits);
         }
 
-        Type *getInt1Ty() { return getIntType(1); }
-        Type *getInt8Ty() { return getIntType(8); }
-        Type *getInt16Ty() { return getIntType(16); }
-        Type *getInt32Ty() { return getIntType(32); }
-        Type *getInt64Ty() { return getIntType(64); }
-
-        Type *getHalfTy() { return getFPType(Type::Kind::Half); }
-        Type *getFloatTy() { return getFPType(Type::Kind::Float); }
-        Type *getDouble() { return getFPType(Type::Kind::Double); }
-
-        Type *getPointerType(Type *elemType)
+        FloatType *getFloatTy(FloatKind kind)
         {
-            return getDerivedType(elemType, Type::Kind::Pointer);
+            for (auto &t : types_)
+            {
+                if (auto *f = dynamic_cast<FloatType *>(t.get()))
+                    if (f->getFloatKind() == kind)
+                        return f;
+            }
+            return make<FloatType>(kind);
         }
 
-        Type *getArrayType(Type *elemType, unsigned numElems)
+        IntegerType *getInt1Ty()
         {
-            return getDerivedType(elemType, Type::Kind::Array, numElems);
+            return getIntTy(1);
         }
 
-        Type *getVectorType(Type *elemType, unsigned numElems)
+        IntegerType *getInt8Ty()
         {
-            return getDerivedType(elemType, Type::Kind::Vector, numElems);
+            return getIntTy(8);
         }
 
-        Type *getStructType(const std::vector<Type *> &elements)
+        IntegerType *getInt16Ty()
         {
-            auto it = std::find_if(types_.begin(), types_.end(), [&](const std::unique_ptr<Type> &t)
-                                   {
-            if (!t->isStructTy()) return false;
-            if (t->getStructElements().size() != elements.size()) return false;
-            for (size_t i = 0; i < elements.size(); ++i)
-                if (t->getStructElements()[i] != elements[i]) return false;
-            return true; });
-            if (it != types_.end())
-                return it->get();
-            Type *t = new Type(elements);
-            types_.emplace_back(t);
-            return t;
+            return getIntTy(16);
         }
 
-        Type *getFunctionType(Type *retType, const std::vector<Type *> &params)
+        IntegerType *getInt32Ty()
         {
-            auto it = std::find_if(types_.begin(), types_.end(),
-                                   [retType, &params](const std::unique_ptr<Type> &t)
-                                   {
-                                       if (!t->isFunctionTy())
-                                           return false;
-                                       if (t->getReturnType() != retType)
-                                           return false;
-                                       if (t->getParamTypes().size() != params.size())
-                                           return false;
-                                       for (size_t i = 0; i < params.size(); ++i)
-                                           if (t->getParamTypes()[i] != params[i])
-                                               return false;
-                                       return true;
-                                   });
-            if (it != types_.end())
-                return it->get();
-            Type *t = new Type(retType, params);
-            types_.emplace_back(t);
-            return t;
+            return getIntTy(32);
+        }
+
+        IntegerType *getInt64Ty()
+        {
+            return getIntTy(64);
+        }
+
+        FloatType *getHalfTy()
+        {
+            return getFloatTy(FloatKind::Half);
+        }
+
+        FloatType *getFloatTy()
+        {
+            return getFloatTy(FloatKind::Float);
+        }
+
+        FloatType *getDoubleTy()
+        {
+            return getFloatTy(FloatKind::Double);
+        }
+
+        PointerType *getPointerTy(Type *elem)
+        {
+            for (auto &t : types_)
+            {
+                if (auto *p = dynamic_cast<PointerType *>(t.get()))
+                    if (p->getElementType() == elem)
+                        return p;
+            }
+            return make<PointerType>(elem);
+        }
+
+        ArrayType *getArrayTy(Type *elem, unsigned count)
+        {
+            for (auto &t : types_)
+            {
+                if (auto *a = dynamic_cast<ArrayType *>(t.get()))
+                    if (a->getElementType() == elem && a->getNumElements() == count)
+                        return a;
+            }
+            return make<ArrayType>(elem, count);
+        }
+
+        VectorType *getVectorTy(Type *elem, unsigned count)
+        {
+            for (auto &t : types_)
+            {
+                if (auto *v = dynamic_cast<VectorType *>(t.get()))
+                    if (v->getElementType() == elem && v->getNumElements() == count)
+                        return v;
+            }
+            return make<VectorType>(elem, count);
+        }
+
+        StructType *getStructTy(const std::vector<Type *> &elements)
+        {
+            for (auto &t : types_)
+            {
+                if (auto *s = dynamic_cast<StructType *>(t.get()))
+                    if (s->getElements() == elements)
+                        return s;
+            }
+            return make<StructType>(elements);
+        }
+
+        FunctionType *getFunctionTy(Type *ret, const std::vector<Type *> &params)
+        {
+            for (auto &t : types_)
+            {
+                if (auto *f = dynamic_cast<FunctionType *>(t.get()))
+                    if (f->getReturnType() == ret && f->getParamTypes() == params)
+                        return f;
+            }
+            return make<FunctionType>(ret, params);
+        }
+
+        Type *getLabelTy()
+        {
+            static LabelType *labelTy = nullptr;
+            if (!labelTy)
+                labelTy = make<LabelType>();
+            return labelTy;
         }
 
     private:
-        Type *makeType(Type::Kind kind, unsigned bits = 0) { return new Type(kind, bits); }
-        Type *getFPType(Type::Kind k)
+        template <typename T, typename... Args>
+        T *make(Args &&...args)
         {
-            auto it = std::find_if(types_.begin(), types_.end(), [&](const std::unique_ptr<Type> &t)
-                                   { return t->getKind() == k; });
-            if (it != types_.end())
-                return it->get();
-            Type *t = makeType(k);
-            types_.emplace_back(t);
-            return t;
+            auto ptr = std::make_unique<T>(std::forward<Args>(args)...);
+            T *raw = ptr.get();
+            types_.emplace_back(std::move(ptr));
+            return raw;
         }
-        Type *getDerivedType(Type *elem, Type::Kind k, unsigned numElems = 0)
-        {
-            auto it = std::find_if(types_.begin(), types_.end(), [&](const std::unique_ptr<Type> &t)
-                                   {
-            if (t->getKind() != k) return false;
-            if (k == Type::Kind::Pointer) return t->getElementType() == elem;
-            if (k == Type::Kind::Array || k == Type::Kind::Vector) return t->getElementType() == elem && t->getNumElements() == numElems;
-            return false; });
-            if (it != types_.end())
-                return it->get();
-            Type *t = new Type(elem, numElems, k);
-            types_.emplace_back(t);
-            return t;
-        }
+
         std::vector<std::unique_ptr<Type>> types_;
-        Type *voidType_ = nullptr;
+
+        VoidType *voidTy_ = nullptr;
     };
 }

@@ -1,12 +1,13 @@
 #pragma once
 
+#include <vector>
 #include <ostream>
-#include <ir/helpers.hpp>
+#include <cassert>
+
 #include <ir/value.hpp>
 
 namespace anvil::ir
 {
-
     class BasicBlock;
 
     class Instruction : public Value
@@ -19,11 +20,7 @@ namespace anvil::ir
             Switch,
             IndirectBr,
             Invoke,
-            CallBr,
             Resume,
-            CatchSwitch,
-            CatchRet,
-            CleanupRet,
             Unreachable,
             FNeg,
             Add,
@@ -44,17 +41,9 @@ namespace anvil::ir
             And,
             Or,
             Xor,
-            ExtractElement,
-            InsertElement,
-            ShuffleVector,
-            ExtractValue,
-            InsertValue,
             Alloca,
             Load,
             Store,
-            Fence,
-            CmpXchg,
-            AtomicRMW,
             GetElementPtr,
             Trunc,
             ZExt,
@@ -66,20 +55,14 @@ namespace anvil::ir
             UIToFP,
             SIToFP,
             PtrToInt,
-            PtrToAddr,
             IntToPtr,
             BitCast,
-            AddrSpaceCast,
             ICmp,
             FCmp,
             PHI,
             Select,
-            Freeze,
             Call,
-            VAArg,
-            LandingPad,
-            CatchPad,
-            CleanupPad
+            Tail,
         };
 
         enum class ICmpPredicate
@@ -96,38 +79,31 @@ namespace anvil::ir
             SLE
         };
 
-        Instruction(Type *type, Opcode op, const std::vector<Value *> &operands = {})
-            : Value(type), opcode_(op), operands_(operands), id_(-1) {}
-        Instruction(BasicBlock *target)
-            : Value(nullptr), opcode_(Opcode::Br), branchTarget_(target), id_(-1) {}
-        Instruction(Value *cond, BasicBlock *thenBB, BasicBlock *elseBB)
-            : Value(nullptr), opcode_(Opcode::Br), cond_(cond), thenBB_(thenBB), elseBB_(elseBB), id_(-1) {}
+        Instruction(Type *type,
+                    Opcode opcode,
+                    std::vector<Value *> operands = {},
+                    BasicBlock *parent = nullptr)
+            : Value(type),
+              opcode_(opcode),
+              operands_(std::move(operands)),
+              parent_(parent) {}
 
         void printTerminator(std::ostream &os) const;
         void printOtherOps(std::ostream &os) const;
 
-        void setId(unsigned id)
-        {
-            id_ = id;
-        }
-        unsigned getId() const noexcept
-        {
-            return id_;
-        }
+        Opcode getOpcode() const noexcept { return opcode_; }
+        BasicBlock *getParent() const noexcept { return parent_; }
+        void setParent(BasicBlock *bb) noexcept { parent_ = bb; }
 
-        void setPredicate(ICmpPredicate pred)
-        {
-            icmpPred_ = pred;
-        }
+        void setId(unsigned id) noexcept { id_ = id; }
+        unsigned getId() const noexcept { return id_; }
 
-        ICmpPredicate getPredicate() const
-        {
-            return icmpPred_;
-        }
+        size_t getNumOperands() const noexcept { return operands_.size(); }
 
-        Opcode getOpcode() const noexcept
+        Value *getOperand(size_t i) const
         {
-            return opcode_;
+            assert(i < operands_.size());
+            return operands_[i];
         }
 
         const std::vector<Value *> &getOperands() const noexcept
@@ -135,139 +111,29 @@ namespace anvil::ir
             return operands_;
         }
 
-        void addIncoming(Value *val, BasicBlock *bb)
+        void addIncoming(Value *value, BasicBlock *block)
         {
-            phiValues_.push_back(val);
-            phiBlocks_.push_back(bb);
+            assert(opcode_ == Opcode::PHI && "Not a PHI instruction");
+            incoming_.emplace_back(value, block);
         }
 
-        const std::vector<Value *> &getIncomingValues() const
+        const std::vector<std::pair<Value *, BasicBlock *>> &
+        getIncoming() const noexcept
         {
-            return phiValues_;
+            return incoming_;
         }
 
-        const std::vector<BasicBlock *> &getIncomingBlocks() const
+        void setICmpPredicate(ICmpPredicate pred) noexcept
         {
-            return phiBlocks_;
+            icmpPred_ = pred;
         }
 
-        BasicBlock *getBranchTarget() const
+        ICmpPredicate getICmpPredicate() const noexcept
         {
-            return branchTarget_;
+            return icmpPred_;
         }
 
-        BasicBlock *getThenBB() const
-        {
-            return thenBB_;
-        }
-
-        BasicBlock *getElseBB() const
-        {
-            return elseBB_;
-        }
-
-        void print(std::ostream &os) const override
-        {
-
-            if (!isTerminator())
-                os << local(id_) << " = ";
-
-            switch (opcode_)
-            {
-            case Opcode::Add:
-            case Opcode::FAdd:
-            case Opcode::Sub:
-            case Opcode::FSub:
-            case Opcode::Mul:
-            case Opcode::FMul:
-            case Opcode::UDiv:
-            case Opcode::SDiv:
-            case Opcode::FDiv:
-            case Opcode::URem:
-            case Opcode::SRem:
-            case Opcode::FRem:
-                printBinary(os);
-                break;
-            case Opcode::FNeg:
-                printUnary(os, "fneg");
-                break;
-            case Opcode::Shl:
-            case Opcode::LShr:
-            case Opcode::AShr:
-            case Opcode::And:
-            case Opcode::Or:
-            case Opcode::Xor:
-                printBinary(os);
-                break;
-            case Opcode::ExtractElement:
-            case Opcode::InsertElement:
-            case Opcode::ShuffleVector:
-                printVectorOps(os);
-                break;
-            case Opcode::ExtractValue:
-            case Opcode::InsertValue:
-                printAggregateOps(os);
-                break;
-            case Opcode::Alloca:
-            case Opcode::Load:
-            case Opcode::Store:
-            case Opcode::Fence:
-            case Opcode::CmpXchg:
-            case Opcode::AtomicRMW:
-            case Opcode::GetElementPtr:
-                printMemoryOps(os);
-                break;
-            case Opcode::Trunc:
-            case Opcode::ZExt:
-            case Opcode::SExt:
-            case Opcode::FPTrunc:
-            case Opcode::FPExt:
-            case Opcode::FPToUI:
-            case Opcode::FPToSI:
-            case Opcode::UIToFP:
-            case Opcode::SIToFP:
-            case Opcode::PtrToInt:
-            case Opcode::PtrToAddr:
-            case Opcode::IntToPtr:
-            case Opcode::BitCast:
-            case Opcode::AddrSpaceCast:
-                printConversionOps(os);
-                break;
-            case Opcode::ICmp:
-            case Opcode::FCmp:
-            case Opcode::PHI:
-            case Opcode::Select:
-            case Opcode::Freeze:
-            case Opcode::Call:
-            case Opcode::VAArg:
-            case Opcode::LandingPad:
-            case Opcode::CatchPad:
-            case Opcode::CleanupPad:
-                printOtherOps(os);
-                break;
-            case Opcode::Ret:
-            case Opcode::Br:
-            case Opcode::Switch:
-            case Opcode::IndirectBr:
-            case Opcode::Invoke:
-            case Opcode::CallBr:
-            case Opcode::Resume:
-            case Opcode::CatchSwitch:
-            case Opcode::CatchRet:
-            case Opcode::CleanupRet:
-            case Opcode::Unreachable:
-                printTerminator(os);
-                break;
-            }
-        }
-
-        void printAsOperand(std::ostream &os) const override
-        {
-            os << local(id_);
-        }
-
-    private:
-        bool isTerminator() const
+        bool isTerminator() const noexcept
         {
             switch (opcode_)
             {
@@ -276,256 +142,12 @@ namespace anvil::ir
             case Opcode::Switch:
             case Opcode::IndirectBr:
             case Opcode::Invoke:
-            case Opcode::CallBr:
             case Opcode::Resume:
-            case Opcode::CatchSwitch:
-            case Opcode::CatchRet:
-            case Opcode::CleanupRet:
             case Opcode::Unreachable:
                 return true;
             default:
                 return false;
             }
-        }
-
-        void printBinary(std::ostream &os) const
-        {
-            os << opcodeStr() << " " << getTypeStr() << " ";
-            operands_[0]->printAsOperand(os);
-            os << ", ";
-            operands_[1]->printAsOperand(os);
-        }
-
-        void printUnary(std::ostream &os, const std::string &op) const
-        {
-            os << op << " " << getTypeStr() << " ";
-            operands_[0]->printAsOperand(os);
-        }
-
-        void printVectorOps(std::ostream &os) const
-        {
-            os << opcodeStr() << " ";
-            operands_[0]->getType()->print(os);
-            os << " ";
-            operands_[0]->printAsOperand(os);
-            for (size_t i = 1; i < operands_.size(); ++i)
-            {
-                os << ", ";
-                operands_[i]->getType()->print(os);
-                os << " ";
-                operands_[i]->printAsOperand(os);
-            }
-        }
-
-        void printAggregateOps(std::ostream &os) const
-        {
-            os << opcodeStr() << " ";
-            operands_[0]->getType()->print(os);
-            os << " ";
-            operands_[0]->printAsOperand(os);
-            for (size_t i = 1; i < operands_.size(); ++i)
-            {
-                os << ", ";
-                operands_[i]->getType()->print(os);
-                os << " ";
-                operands_[i]->printAsOperand(os);
-            }
-        }
-
-        void printMemoryOps(std::ostream &os) const
-        {
-            if (opcode_ == Opcode::GetElementPtr)
-            {
-                Type *elemTy = operands_[0]->getType()->getElementType();
-                os << "getelementptr ";
-                elemTy->print(os);
-                os << ", ";
-                operands_[0]->getType()->print(os);
-                os << " ";
-                operands_[0]->printAsOperand(os);
-                for (size_t i = 1; i < operands_.size(); ++i)
-                {
-                    os << ", ";
-                    operands_[i]->getType()->print(os);
-                    os << " ";
-                    operands_[i]->printAsOperand(os);
-                }
-            }
-            else
-            {
-                os << opcodeStr() << " ";
-                for (size_t i = 0; i < operands_.size(); ++i)
-                {
-                    if (i > 0)
-                        os << ", ";
-                    operands_[i]->getType()->print(os);
-                    os << " ";
-                    operands_[i]->printAsOperand(os);
-                }
-            }
-        }
-
-        void printConversionOps(std::ostream &os) const
-        {
-            os << opcodeStr() << " ";
-            operands_[0]->getType()->print(os);
-            os << " ";
-            operands_[0]->printAsOperand(os);
-            os << " to ";
-            type_->print(os);
-        }
-
-        std::string getTypeStr() const
-        {
-            if (type_->isIntegerTy())
-                return "i" + std::to_string(type_->getBitWidth());
-            if (type_->isHalfTy())
-                return "half";
-            if (type_->isFloatTy())
-                return "float";
-            if (type_->isDoubleTy())
-                return "double";
-            return "unknown";
-        }
-
-        std::string opcodeStr() const
-        {
-            switch (opcode_)
-            {
-            case Opcode::Add:
-                return "add";
-            case Opcode::FAdd:
-                return "fadd";
-            case Opcode::Sub:
-                return "sub";
-            case Opcode::FSub:
-                return "fsub";
-            case Opcode::Mul:
-                return "mul";
-            case Opcode::FMul:
-                return "fmul";
-            case Opcode::UDiv:
-                return "udiv";
-            case Opcode::SDiv:
-                return "sdiv";
-            case Opcode::FDiv:
-                return "fdiv";
-            case Opcode::URem:
-                return "urem";
-            case Opcode::SRem:
-                return "srem";
-            case Opcode::FRem:
-                return "frem";
-            case Opcode::Shl:
-                return "shl";
-            case Opcode::LShr:
-                return "lshr";
-            case Opcode::AShr:
-                return "ashr";
-            case Opcode::And:
-                return "and";
-            case Opcode::Or:
-                return "or";
-            case Opcode::Xor:
-                return "xor";
-            case Opcode::FNeg:
-                return "fneg";
-            case Opcode::ExtractElement:
-                return "extractelement";
-            case Opcode::InsertElement:
-                return "insertelement";
-            case Opcode::ShuffleVector:
-                return "shufflevector";
-            case Opcode::ExtractValue:
-                return "extractvalue";
-            case Opcode::InsertValue:
-                return "insertvalue";
-            case Opcode::Alloca:
-                return "alloca";
-            case Opcode::Load:
-                return "load";
-            case Opcode::Store:
-                return "store";
-            case Opcode::Fence:
-                return "fence";
-            case Opcode::CmpXchg:
-                return "cmpxchg";
-            case Opcode::AtomicRMW:
-                return "atomicrmw";
-            case Opcode::GetElementPtr:
-                return "getelementptr";
-            case Opcode::Trunc:
-                return "trunc";
-            case Opcode::ZExt:
-                return "zext";
-            case Opcode::SExt:
-                return "sext";
-            case Opcode::FPTrunc:
-                return "fptrunc";
-            case Opcode::FPExt:
-                return "fpext";
-            case Opcode::FPToUI:
-                return "fptoui";
-            case Opcode::FPToSI:
-                return "fptosi";
-            case Opcode::UIToFP:
-                return "uitofp";
-            case Opcode::SIToFP:
-                return "sitofp";
-            case Opcode::PtrToInt:
-                return "ptrtoint";
-            case Opcode::PtrToAddr:
-                return "ptrtoaddr";
-            case Opcode::IntToPtr:
-                return "inttoptr";
-            case Opcode::BitCast:
-                return "bitcast";
-            case Opcode::AddrSpaceCast:
-                return "addrspacecast";
-            case Opcode::ICmp:
-                return "icmp";
-            case Opcode::FCmp:
-                return "fcmp";
-            case Opcode::PHI:
-                return "phi";
-            case Opcode::Select:
-                return "select";
-            case Opcode::Freeze:
-                return "freeze";
-            case Opcode::Call:
-                return "call";
-            case Opcode::VAArg:
-                return "va_arg";
-            case Opcode::LandingPad:
-                return "landingpad";
-            case Opcode::CatchPad:
-                return "catchpad";
-            case Opcode::CleanupPad:
-                return "cleanuppad";
-            case Opcode::Ret:
-                return "ret";
-            case Opcode::Br:
-                return "br";
-            case Opcode::Switch:
-                return "switch";
-            case Opcode::IndirectBr:
-                return "indirectbr";
-            case Opcode::Invoke:
-                return "invoke";
-            case Opcode::CallBr:
-                return "callbr";
-            case Opcode::Resume:
-                return "resume";
-            case Opcode::CatchSwitch:
-                return "catchswitch";
-            case Opcode::CatchRet:
-                return "catchret";
-            case Opcode::CleanupRet:
-                return "cleanupret";
-            case Opcode::Unreachable:
-                return "unreachable";
-            }
-            return "unknown";
         }
 
         std::string icmpPredStr() const
@@ -552,21 +174,94 @@ namespace anvil::ir
                 return "slt";
             case ICmpPredicate::SLE:
                 return "sle";
+            default:
+                return "unknown";
             }
-            return "eq";
+        }
+
+        void print(std::ostream &os) const override
+        {
+            if (!isTerminator())
+                os << "%" << id_ << " = ";
+
+            if (isTerminator())
+                printTerminator(os);
+            else
+                printOtherOps(os);
+        }
+
+        void printAsOperand(std::ostream &os) const override
+        {
+            os << "%" << id_;
+        }
+
+    private:
+        std::string opcodeStr() const
+        {
+            switch (opcode_)
+            {
+#define OP(x, s)    \
+    case Opcode::x: \
+        return s
+                OP(Ret, "ret");
+                OP(Br, "br");
+                OP(Switch, "switch");
+                OP(IndirectBr, "indirectbr");
+                OP(Invoke, "invoke");
+                OP(Resume, "resume");
+                OP(Unreachable, "unreachable");
+                OP(FNeg, "fneg");
+                OP(Add, "add");
+                OP(FAdd, "fadd");
+                OP(Sub, "sub");
+                OP(FSub, "fsub");
+                OP(Mul, "mul");
+                OP(FMul, "fmul");
+                OP(UDiv, "udiv");
+                OP(SDiv, "sdiv");
+                OP(FDiv, "fdiv");
+                OP(URem, "urem");
+                OP(SRem, "srem");
+                OP(FRem, "frem");
+                OP(Shl, "shl");
+                OP(LShr, "lshr");
+                OP(AShr, "ashr");
+                OP(And, "and");
+                OP(Or, "or");
+                OP(Xor, "xor");
+                OP(Alloca, "alloca");
+                OP(Load, "load");
+                OP(Store, "store");
+                OP(GetElementPtr, "getelementptr");
+                OP(Trunc, "trunc");
+                OP(ZExt, "zext");
+                OP(SExt, "sext");
+                OP(FPTrunc, "fptrunc");
+                OP(FPExt, "fpext");
+                OP(FPToUI, "fptoui");
+                OP(FPToSI, "fptosi");
+                OP(UIToFP, "uitofp");
+                OP(SIToFP, "sitofp");
+                OP(PtrToInt, "ptrtoint");
+                OP(IntToPtr, "inttoptr");
+                OP(BitCast, "bitcast");
+                OP(ICmp, "icmp");
+                OP(FCmp, "fcmp");
+                OP(PHI, "phi");
+                OP(Select, "select");
+                OP(Call, "call");
+                OP(Tail, "tail");
+#undef OP
+            }
+            return "unknown";
         }
 
         Opcode opcode_;
         std::vector<Value *> operands_;
-        unsigned id_;
-        inline static unsigned nextId_ = 0;
-        ICmpPredicate icmpPred_;
-        BasicBlock *branchTarget_ = nullptr;
-        Value *cond_ = nullptr;
-        BasicBlock *thenBB_ = nullptr;
-        BasicBlock *elseBB_ = nullptr;
-        std::vector<Value *> phiValues_;
-        std::vector<BasicBlock *> phiBlocks_;
-    };
+        std::vector<std::pair<Value *, BasicBlock *>> incoming_;
+        ICmpPredicate icmpPred_{};
 
+        BasicBlock *parent_ = nullptr;
+        unsigned id_ = 0;
+    };
 }

@@ -2,6 +2,7 @@
 
 #include <ir/function.hpp>
 #include <ir/global.hpp>
+#include <ir/constants/string.hpp>
 
 namespace anvil::ir
 {
@@ -10,16 +11,20 @@ namespace anvil::ir
     {
     public:
         explicit Module(std::string name) : name_(std::move(name)) {}
+
         const std::string &name() const { return name_; }
-        void addGlobal(std::unique_ptr<Value> g) { globals_.push_back(std::move(g)); }
+
+        void addGlobal(std::unique_ptr<GlobalVariable> g) { globals_.push_back(std::move(g)); }
 
         GlobalVariable *createStringLiteral(Context &ctx, const std::string &str)
         {
             Type *i8 = ctx.getInt8Ty();
-            Type *arrayTy = ctx.getArrayType(i8, str.size() + 1);
-            Type *ptrTy = ctx.getPointerType(arrayTy);
+            Type *arrayTy = ctx.getArrayTy(i8, str.size() + 1);
+            Type *ptrTy = ctx.getPointerTy(arrayTy);
+
             auto cstr = std::make_unique<ConstantString>(arrayTy, str);
             auto gv = std::make_unique<GlobalVariable>(ptrTy, ".str." + std::to_string(stringId_++), std::move(cstr));
+
             GlobalVariable *ptr = gv.get();
             addGlobal(std::move(gv));
             return ptr;
@@ -37,12 +42,18 @@ namespace anvil::ir
             os << "\n";
 
             for (const auto &g : globals_)
-                g->print(os), os << "\n";
+            {
+                g->print(os);
+                os << "\n";
+            }
             if (!globals_.empty())
                 os << "\n";
 
             for (const auto &fn : functions_)
-                fn->print(os), os << "\n";
+            {
+                fn->print(os);
+                os << "\n";
+            }
         }
 
         void setTargetTriple(std::string tt) { targetTriple_ = std::move(tt); }
@@ -50,7 +61,7 @@ namespace anvil::ir
 
     private:
         std::string name_;
-        std::vector<std::unique_ptr<Value>> globals_;
+        std::vector<std::unique_ptr<GlobalVariable>> globals_;
         std::vector<std::unique_ptr<Function>> functions_;
         std::string targetTriple_;
         std::string dataLayout_;

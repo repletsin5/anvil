@@ -8,37 +8,36 @@ int main()
     Context ctx;
     Module mod("complex_pattern_2");
 
-    auto mainFn = std::make_unique<Function>(ctx.getInt32Ty(), "main");
-    
-    auto entry = std::make_unique<BasicBlock>("entry");
-    auto loop_cond = std::make_unique<BasicBlock>("loop.cond");
-    auto loop_body = std::make_unique<BasicBlock>("loop.body");
-    auto loop_end = std::make_unique<BasicBlock>("loop.end");
-    auto if_then = std::make_unique<BasicBlock>("if.then");
-    auto if_else = std::make_unique<BasicBlock>("if.else");
-    auto nested_if_then = std::make_unique<BasicBlock>("nested.then");
-    auto nested_if_else = std::make_unique<BasicBlock>("nested.else");
-    auto if_merge = std::make_unique<BasicBlock>("if.merge");
+    auto funcTy = ctx.getFunctionTy(ctx.getInt32Ty(), {});
+    auto mainFn = std::make_unique<Function>(funcTy, "main");
+
+    auto entry = std::make_unique<BasicBlock>(ctx.getLabelTy(), "entry", mainFn.get());
+    auto loop_cond = std::make_unique<BasicBlock>(ctx.getLabelTy(), "loop.cond", mainFn.get());
+    auto loop_body = std::make_unique<BasicBlock>(ctx.getLabelTy(), "loop.body", mainFn.get());
+    auto loop_end = std::make_unique<BasicBlock>(ctx.getLabelTy(), "loop.end", mainFn.get());
+    auto if_then = std::make_unique<BasicBlock>(ctx.getLabelTy(), "if.then", mainFn.get());
+    auto if_else = std::make_unique<BasicBlock>(ctx.getLabelTy(), "if.else", mainFn.get());
+    auto nested_if_then = std::make_unique<BasicBlock>(ctx.getLabelTy(), "nested.then", mainFn.get());
+    auto nested_if_else = std::make_unique<BasicBlock>(ctx.getLabelTy(), "nested.else", mainFn.get());
+    auto if_merge = std::make_unique<BasicBlock>(ctx.getLabelTy(), "if.merge", mainFn.get());
 
     IRBuilder builder(&ctx, entry.get());
 
-    ConstantInt *zero = new ConstantInt(ctx.getInt32Ty(), 0);
-    ConstantInt *one = new ConstantInt(ctx.getInt32Ty(), 1);
-    ConstantInt *two = new ConstantInt(ctx.getInt32Ty(), 2);
-    ConstantInt *ten = new ConstantInt(ctx.getInt32Ty(), 10);
-    ConstantInt *five = new ConstantInt(ctx.getInt32Ty(), 5);
+    auto zero = new ConstantInt(ctx.getInt32Ty(), 0);
+    auto one = new ConstantInt(ctx.getInt32Ty(), 1);
+    auto two = new ConstantInt(ctx.getInt32Ty(), 2);
+    auto ten = new ConstantInt(ctx.getInt32Ty(), 10);
+    auto five = new ConstantInt(ctx.getInt32Ty(), 5);
 
     builder.CreateBr(loop_cond.get());
 
     builder.SetInsertPoint(loop_cond.get());
     Instruction *iPhi = builder.CreatePHI(ctx.getInt32Ty());
     iPhi->addIncoming(zero, entry.get());
-
     Instruction *cmpLoop = builder.CreateICmp(Instruction::ICmpPredicate::SLT, iPhi, ten);
     builder.CreateCondBr(cmpLoop, loop_body.get(), loop_end.get());
 
     builder.SetInsertPoint(loop_body.get());
-
     Instruction *cond1 = builder.CreateICmp(Instruction::ICmpPredicate::EQ, iPhi, zero);
     builder.CreateCondBr(cond1, if_then.get(), if_else.get());
 
@@ -64,7 +63,7 @@ int main()
     phiIf->addIncoming(addNested2, nested_if_else.get());
     phiIf->addIncoming(addElse, if_else.get());
 
-    Instruction *inc = builder.CreateAdd(iPhi, one);
+    Instruction *inc = builder.CreateAdd(phiIf, one);
     iPhi->addIncoming(inc, if_merge.get());
     builder.CreateBr(loop_cond.get());
 
